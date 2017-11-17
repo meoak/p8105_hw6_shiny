@@ -1,0 +1,124 @@
+---
+title: "p8105_hw6_shiny"
+author: "MeOak"
+date: "November 17, 2017"
+output: html_document
+---
+---
+title: "Untitled"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: row
+  runtime: shiny
+---
+
+
+rsconnect::deployApp()
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(plotly)
+library(shiny)
+
+library(tidyverse)
+library(tidytext)
+library(curl)
+library(data.table)
+library(dplyr)
+library(DT)
+library(forcats)
+library(ggplot2)
+library(ggridges)
+library(ggthemes)
+library(haven)
+library(htmltools)
+library(httr)
+library(janitor)
+library(jsonlite)
+library(knitr)
+library(knitLatex)
+library(magrittr)
+library(readr)
+library(readxl)
+library(reshape2)
+library(rvest)
+library(stringr)
+library(tools)
+library(viridisLite)
+library(viridis)
+```
+
+```{r cache=TRUE}
+restaurant_inspections = read_csv("./data/DOHMH_New_York_City_Restaurant_Inspection_Results.csv.gz", 
+                           col_types = cols(building = col_character()),
+                           na = c("NA", "N/A")) %>%
+  filter(grade %in% c("A", "B", "C"), boro != "Missing") %>% 
+  mutate(boro = str_to_title(boro))
+```
+
+
+
+
+Column {.sidebar}
+-----------------------------------------------------------------------
+
+```{r}
+boros = restaurant_inspections %>% distinct(boro) %>% pull()
+
+inputPanel(boros)
+
+# selectInput widget
+selectInput("boro_choice", label = h3("Select boro"),
+            choices = boros, selected = "Manhattan")
+```
+
+
+Row
+-----------------------------------------------------------------------
+
+### Chart A
+
+```{r}
+renderPlotly({ 
+restaurant_inspections %>%
+  group_by(camis) %>%
+  filter(!duplicated(inspection_date)) %>%
+  select(camis, inspection_date, score) %>%
+  plot_ly(x = ~inspection_date, y = ~score, group_by = ~camis,
+            type = 'scatter', 
+            alpha = 0.25,
+            mode = 'lines+markers') %>%
+  layout(xaxis = list(range = c(as.Date('2012-01-01'), as.Date('2019-01-01'))))
+
+})
+```
+
+Row {.tabset .tabset-fade}
+-----------------------------------------------------------------------
+
+### Chart B
+
+```{r}
+renderPlotly({
+restaurant_inspections %>%
+  group_by(boro) %>%
+  count(grade) %>%
+  ungroup() %>%
+  mutate(boro = fct_reorder(boro, n)) %>%
+  plot_ly(x = ~boro, y = ~n, color = ~grade, type = "bar")
+
+
+})
+
+
+```
+
+### Chart C
+
+```{r}
+renderPlotly({restaurant_inspections %>%
+  group_by(boro) %>%
+  plot_ly(y = ~score, color = ~boro, type = "box") 
+})
+```
+
